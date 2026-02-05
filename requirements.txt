@@ -1,0 +1,12 @@
+Django
+djangorestframework
+Pillow
+django-crispy-forms
+googlemaps
+whitenoise
+django-environ
+pyodbc
+mssql-django
+gunicorn
+pandas
+openpyxl

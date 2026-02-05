@@ -1,0 +1,488 @@
+{% load i18n %}
+<!DOCTYPE html>
+<html
+  lang="{{ request.LANGUAGE_CODE|default:'en' }}"
+  dir="{% if request.LANGUAGE_CODE == 'ar' %}rtl{% else %}ltr{% endif %}"
+>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% trans "IFF / DLT Tools" %}</title>
+
+    <!-- Bootstrap 5 -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+
+    <style>
+      body { background: #f6f7fb; }
+      .cardish {
+        border: 0;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+        background: #fff;
+      }
+      .muted { color: #64748b; }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        font-size: 0.9rem;
+      }
+      .dropzone {
+        border: 2px dashed #cbd5e1;
+        border-radius: 14px;
+        background: #fff;
+        padding: 16px;
+      }
+      .file-pill {
+        border: 1px solid #e5e7eb;
+        border-radius: 999px;
+        padding: 8px 12px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .rtl-fix .form-control,
+      .rtl-fix .form-select { text-align: right; }
+
+      /* Accordion polish */
+      .accordion-item {
+        border: 0;
+        background: transparent;
+      }
+      .accordion-button {
+        border-radius: 16px !important;
+        background: #fff;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+        padding: 18px 18px;
+      }
+      .accordion-button:not(.collapsed) {
+        background: #fff;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      }
+      .accordion-body {
+        background: transparent;
+        padding: 14px 6px 18px 6px;
+      }
+      .inner-box {
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+        padding: 18px;
+      }
+
+      .tool-meta {
+        display:flex;
+        align-items:center;
+        gap:10px;
+        flex-wrap:wrap;
+      }
+      .tool-title { margin:0; font-weight:700; }
+      .tool-desc { margin:0; }
+      .badge {
+        margin-left: 8px;
+        margin-right: 8px;
+      }
+    </style>
+  </head>
+
+  <body class="{% if request.LANGUAGE_CODE == 'ar' %}rtl-fix{% endif %}">
+    <div class="container py-5">
+      <div class="row justify-content-center">
+        <div class="col-lg-10 col-xl-9">
+
+          <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
+            <div>
+              <h2 class="mb-1">{% trans "IFF / DLT Tools" %}</h2>
+              <div class="muted">
+                {% trans "Upload files and download the generated output instantly." %}
+              </div>
+            </div>
+            <span class="badge text-bg-primary align-self-start">{% trans "File Converter" %}</span>
+          </div>
+
+          <div id="alertBox" class="alert d-none" role="alert"></div>
+
+          <div class="accordion" id="toolsAccordion">
+
+            <!-- 1) Analyzer -->
+            <div class="accordion-item mb-3">
+              <h2 class="accordion-header" id="h-analyze">
+                <button class="accordion-button" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#c-analyze"
+                        aria-expanded="true" aria-controls="c-analyze">
+                  <div class="tool-meta w-100 justify-content-between">
+                    <div>
+                      <p class="tool-title">{% trans "DLT + Error Log → Excel" %}</p>
+                      <p class="tool-desc muted">{% trans "Generate a formatted Excel with joined records + summary." %}</p>
+                    </div>
+                    <span class="badge text-bg-success">{% trans "Analyzer" %}</span>
+                  </div>
+                </button>
+              </h2>
+              <div id="c-analyze" class="accordion-collapse collapse show" aria-labelledby="h-analyze" data-bs-parent="#toolsAccordion">
+                <div class="accordion-body">
+                  <div class="inner-box">
+                    <form id="formAnalyze">
+                      <div class="dropzone mb-3">
+                        <div class="fw-semibold">{% trans "Upload required files" %}</div>
+                        <div class="small muted">{% trans "DLT (.dlt/.txt) + Error Log (.csv | pipe-delimited)" %}</div>
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label fw-semibold">{% trans "DLT File" %}</label>
+                        <input class="form-control" type="file" name="dlt_file" accept=".dlt,.txt" required />
+                        <div class="mt-2 d-none file-preview"></div>
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label fw-semibold">{% trans "Error Log CSV" %}</label>
+                        <input class="form-control" type="file" name="error_log" accept=".csv" required />
+                        <div class="form-text">{% trans "CSV must be pipe-delimited (|)." %}</div>
+                        <div class="mt-2 d-none file-preview"></div>
+                      </div>
+
+                      <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn btn-primary px-4" type="submit">📄 {% trans "Generate Excel" %}</button>
+                        <button class="btn btn-light" type="button" data-reset="formAnalyze">{% trans "Reset" %}</button>
+                        <div class="ms-auto d-flex align-items-center gap-2">
+                          <div class="spinner-border spinner-border-sm text-primary d-none"></div>
+                          <span class="small muted status-text"></span>
+                        </div>
+                      </div>
+                    </form>
+
+                    <div class="mt-3 small muted">
+                      <div class="fw-semibold mb-1">{% trans "Endpoint" %}</div>
+                      <div class="mono bg-light rounded-3 p-2">POST /api/dlt-errors/export-excel/</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2) DLT -> Excel -->
+            <div class="accordion-item mb-3">
+              <h2 class="accordion-header" id="h-dlt2xlsx">
+                <button class="accordion-button collapsed" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#c-dlt2xlsx"
+                        aria-expanded="false" aria-controls="c-dlt2xlsx">
+                  <div class="tool-meta w-100 justify-content-between">
+                    <div>
+                      <p class="tool-title">{% trans "DLT → Excel" %}</p>
+                      <p class="tool-desc muted">{% trans "Export DLT lines into Excel rows with fields." %}</p>
+                    </div>
+                    <span class="badge text-bg-primary">{% trans "Converter" %}</span>
+                  </div>
+                </button>
+              </h2>
+              <div id="c-dlt2xlsx" class="accordion-collapse collapse" aria-labelledby="h-dlt2xlsx" data-bs-parent="#toolsAccordion">
+                <div class="accordion-body">
+                  <div class="inner-box">
+                    <form id="formDltToXlsx">
+                      <div class="mb-3">
+                        <label class="form-label fw-semibold">{% trans "DLT File" %}</label>
+                        <input class="form-control" type="file" name="dlt_file" accept=".dlt,.txt" required />
+                        <div class="mt-2 d-none file-preview"></div>
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label fw-semibold">{% trans "Max Fields" %}</label>
+                        <input class="form-control" type="number" name="max_fields" value="60" min="10" max="250" />
+                        <div class="form-text">{% trans "Increase if your segments have many fields." %}</div>
+                      </div>
+
+                      <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn btn-primary px-4" type="submit">🔁 {% trans "Convert to Excel" %}</button>
+                        <button class="btn btn-light" type="button" data-reset="formDltToXlsx">{% trans "Reset" %}</button>
+                        <div class="ms-auto d-flex align-items-center gap-2">
+                          <div class="spinner-border spinner-border-sm text-primary d-none"></div>
+                          <span class="small muted status-text"></span>
+                        </div>
+                      </div>
+                    </form>
+
+                    <div class="mt-3 small muted">
+                      <div class="fw-semibold mb-1">{% trans "Endpoint" %}</div>
+                      <div class="mono bg-light rounded-3 p-2">POST /api/iff/dlt-to-excel/</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3) Excel -> DLT -->
+            <div class="accordion-item mb-3">
+              <h2 class="accordion-header" id="h-xlsx2dlt">
+                <button class="accordion-button collapsed" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#c-xlsx2dlt"
+                        aria-expanded="false" aria-controls="c-xlsx2dlt">
+                  <div class="tool-meta w-100 justify-content-between">
+                    <div>
+                      <p class="tool-title">{% trans "Excel → DLT" %}</p>
+                      <p class="tool-desc muted">{% trans "Rebuild a DLT text file from Excel." %}</p>
+                    </div>
+                    <span class="badge text-bg-primary">{% trans "Converter" %}</span>
+                  </div>
+                </button>
+              </h2>
+              <div id="c-xlsx2dlt" class="accordion-collapse collapse" aria-labelledby="h-xlsx2dlt" data-bs-parent="#toolsAccordion">
+                <div class="accordion-body">
+                  <div class="inner-box">
+                    <form id="formXlsxToDlt">
+                      <div class="mb-3">
+                        <label class="form-label fw-semibold">{% trans "Excel File" %}</label>
+                        <input class="form-control" type="file" name="excel_file" accept=".xlsx" required />
+                        <div class="mt-2 d-none file-preview"></div>
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label fw-semibold">{% trans "Sheet Name" %}</label>
+                        <input class="form-control" type="text" name="sheet" value="DLT" />
+                        <div class="form-text">{% trans "Default is DLT (from the DLT → Excel export)." %}</div>
+                      </div>
+
+                      <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn btn-primary px-4" type="submit">🔁 {% trans "Convert to DLT" %}</button>
+                        <button class="btn btn-light" type="button" data-reset="formXlsxToDlt">{% trans "Reset" %}</button>
+                        <div class="ms-auto d-flex align-items-center gap-2">
+                          <div class="spinner-border spinner-border-sm text-primary d-none"></div>
+                          <span class="small muted status-text"></span>
+                        </div>
+                      </div>
+                    </form>
+
+                    <div class="mt-3 small muted">
+                      <div class="fw-semibold mb-1">{% trans "Endpoint" %}</div>
+                      <div class="mono bg-light rounded-3 p-2">POST /api/iff/excel-to-dlt/</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4) Commercial Manual Close -->
+            <div class="accordion-item mb-3">
+              <h2 class="accordion-header" id="h-close">
+                <button class="accordion-button collapsed" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#c-close"
+                        aria-expanded="false" aria-controls="c-close">
+                  <div class="tool-meta w-100 justify-content-between">
+                    <div>
+                      <p class="tool-title">{% trans "Commercial Manual Close" %}</p>
+                      <p class="tool-desc muted">{% trans "Close a single commercial record and return ZIP (DLT + Excel changes)." %}</p>
+                    </div>
+                    <span class="badge text-bg-danger">{% trans "Sensitive" %}</span>
+                  </div>
+                </button>
+              </h2>
+              <div id="c-close" class="accordion-collapse collapse" aria-labelledby="h-close" data-bs-parent="#toolsAccordion">
+                <div class="accordion-body">
+                  <div class="inner-box border border-danger-subtle">
+                    <form id="formManualClose">
+                      <div class="dropzone mb-3">
+                        <div class="fw-semibold">{% trans "Upload required file" %}</div>
+                        <div class="small muted">{% trans "DLT (.dlt/.txt) only" %}</div>
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label fw-semibold">{% trans "DLT File" %}</label>
+                        <input class="form-control" type="file" name="dlt_file" accept=".dlt,.txt" required />
+                        <div class="mt-2 d-none file-preview"></div>
+                      </div>
+
+                      <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn btn-danger px-4" type="submit">✅ {% trans "Close Facility" %}</button>
+                        <button class="btn btn-light" type="button" data-reset="formManualClose">{% trans "Reset" %}</button>
+                        <div class="ms-auto d-flex align-items-center gap-2">
+                          <div class="spinner-border spinner-border-sm text-primary d-none"></div>
+                          <span class="small muted status-text"></span>
+                        </div>
+                      </div>
+
+                      <div class="mt-3 small text-danger">
+                        {% trans "Warning: This action overwrites closure fields and should be used only for a single verified record." %}
+                      </div>
+                    </form>
+
+                    <div class="mt-3 small muted">
+                      <div class="fw-semibold mb-1">{% trans "Endpoint" %}</div>
+                      <div class="mono bg-light rounded-3 p-2">POST /api/iff/commercial-manual-close/</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /accordion -->
+
+
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const ORIGIN = window.location.origin;
+
+      const ENDPOINTS = {
+        analyze: `${ORIGIN}/api/dlt-errors/export-excel/`,
+        dlt2xlsx: `${ORIGIN}/api/iff/dlt-to-excel/`,
+        xlsx2dlt: `${ORIGIN}/api/iff/excel-to-dlt/`,
+        manualClose: `${ORIGIN}/api/iff/commercial-manual-close/`,
+      };
+
+      const alertBox = document.getElementById("alertBox");
+
+      function showAlert(type, msg) {
+        alertBox.className = `alert alert-${type}`;
+        alertBox.textContent = msg;
+        alertBox.classList.remove("d-none");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      function hideAlert() {
+        alertBox.classList.add("d-none");
+        alertBox.textContent = "";
+      }
+
+      function formatBytes(bytes) {
+        const sizes = ["B","KB","MB","GB"];
+        const i = Math.min(Math.floor(Math.log(bytes)/Math.log(1024)), sizes.length-1);
+        return (bytes/Math.pow(1024,i)).toFixed(2) + " " + sizes[i];
+      }
+
+      function renderFilePreview(container, file) {
+        if (!file) {
+          container.classList.add("d-none");
+          container.innerHTML = "";
+          return;
+        }
+        container.classList.remove("d-none");
+        container.innerHTML = `
+          <div class="file-pill">
+            <div class="d-flex flex-column">
+              <div class="fw-semibold">${file.name}</div>
+              <div class="small muted mono">${formatBytes(file.size)}</div>
+            </div>
+            <span class="badge text-bg-success">{% trans "Selected" %}</span>
+          </div>
+        `;
+      }
+
+      function wireFilePreviews(formEl) {
+        const inputs = formEl.querySelectorAll('input[type="file"]');
+        inputs.forEach((inp) => {
+          const preview = inp.parentElement.querySelector(".file-preview");
+          inp.addEventListener("change", () => renderFilePreview(preview, inp.files[0]));
+        });
+      }
+
+      async function postAndDownload({ formEl, url }) {
+        hideAlert();
+
+        const spinner = formEl.querySelector(".spinner-border");
+        const statusText = formEl.querySelector(".status-text");
+        const submitBtn = formEl.querySelector('button[type="submit"]');
+
+        const fd = new FormData(formEl);
+
+        const requiredFiles = Array.from(formEl.querySelectorAll('input[type="file"][required]'));
+        for (const inp of requiredFiles) {
+          if (!inp.files || !inp.files.length) {
+            showAlert("warning", "{% trans 'Please select the required file(s).' %}");
+            return;
+          }
+        }
+
+        try {
+          submitBtn.disabled = true;
+          spinner.classList.remove("d-none");
+          statusText.textContent = "{% trans 'Uploading & processing…' %}";
+
+          const res = await fetch(url, { method: "POST", body: fd });
+
+          if (!res.ok) {
+            let msg = "Request failed.";
+            try {
+              const data = await res.json();
+              msg = data.detail || JSON.stringify(data);
+            } catch (_) {}
+            throw new Error(msg);
+          }
+
+          const blob = await res.blob();
+
+          let filename = "download";
+          const cd = res.headers.get("content-disposition");
+          if (cd && cd.toLowerCase().includes("filename=")) {
+            filename = cd.split("filename=")[1].replaceAll('"', "").trim();
+          } else {
+            filename = "output";
+          }
+
+          const dlUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = dlUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(dlUrl);
+
+          showAlert("success", "{% trans 'Done. File downloaded successfully.' %}");
+        } catch (err) {
+          showAlert("danger", err.message || "{% trans 'Something went wrong.' %}");
+        } finally {
+          spinner.classList.add("d-none");
+          statusText.textContent = "";
+          submitBtn.disabled = false;
+        }
+      }
+
+      function wireResetButtons() {
+        document.querySelectorAll("[data-reset]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const formId = btn.getAttribute("data-reset");
+            const formEl = document.getElementById(formId);
+            formEl.reset();
+            formEl.querySelectorAll(".file-preview").forEach((p) => renderFilePreview(p, null));
+            hideAlert();
+          });
+        });
+      }
+
+      const formAnalyze = document.getElementById("formAnalyze");
+      const formDltToXlsx = document.getElementById("formDltToXlsx");
+      const formXlsxToDlt = document.getElementById("formXlsxToDlt");
+      const formManualClose = document.getElementById("formManualClose");
+
+      [formAnalyze, formDltToXlsx, formXlsxToDlt, formManualClose].forEach(wireFilePreviews);
+      wireResetButtons();
+
+      formAnalyze.addEventListener("submit", (e) => {
+        e.preventDefault();
+        postAndDownload({ formEl: formAnalyze, url: ENDPOINTS.analyze });
+      });
+
+      formDltToXlsx.addEventListener("submit", (e) => {
+        e.preventDefault();
+        postAndDownload({ formEl: formDltToXlsx, url: ENDPOINTS.dlt2xlsx });
+      });
+
+      formXlsxToDlt.addEventListener("submit", (e) => {
+        e.preventDefault();
+        postAndDownload({ formEl: formXlsxToDlt, url: ENDPOINTS.xlsx2dlt });
+      });
+
+      formManualClose.addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (!confirm("{% trans 'Are you sure you want to close this facility? This will overwrite closure fields.' %}")) return;
+        postAndDownload({ formEl: formManualClose, url: ENDPOINTS.manualClose });
+      });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>
